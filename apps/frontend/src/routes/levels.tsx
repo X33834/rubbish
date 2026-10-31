@@ -139,11 +139,11 @@ function LevelsPage() {
             两条轨道，一套阶梯
           </p>
           <p className="text-muted-foreground">
-            <strong className="text-foreground">积分轨（L1–L4）</strong>
-            由阅读、评论、收藏、投稿等真实行为累积，自动解锁；
+            <strong className="text-foreground">投稿轨（L1–L4）</strong>
+            L1–L3 随确认动作解锁，L4 必须有稿件被本刊录用——积分满 400 也只是必要条件，
+            <strong className="text-foreground">投稿并录用才是升级的重磅</strong>；
             <strong className="text-foreground">职责轨（L5–L9）</strong>
-            L5/L6 按下方冻结标准开放申请、编辑部审批，L7 以上由编辑部按贡献直接提拔——
-            两段都不由积分购买，审稿与裁决权始终与责任绑定。
+            L5/L6 按下方冻结标准开放申请、编辑部审批，L7 以上由编辑部按贡献直接提拔。
           </p>
           <p className="text-muted-foreground">
             每位用户只看到自己已达到的等级与最近三个待解锁成就：等级是慢慢长出来的，
@@ -190,11 +190,15 @@ function LevelsPage() {
                   </span>
                   <h3 className="text-base font-semibold">{item.name}</h3>
                   <Badge variant="outline" className="text-[10px]">
-                    {item.track === 'merit' ? '积分解锁' : '编辑部授予'}
+                    {item.track === 'merit'
+                      ? item.metric
+                        ? '投稿解锁'
+                        : '积分解锁'
+                      : '编辑部授予'}
                   </Badge>
                   {item.track === 'merit' && item.xp_floor != null && (
                     <span className="text-xs tabular-nums text-muted-foreground">
-                      {item.xp_floor} XP 起
+                      {item.metric ? `${item.xp_floor} XP + 录用` : `${item.xp_floor} XP 起`}
                     </span>
                   )}
                 </div>

@@ -96,3 +96,23 @@ test.describe('role applications', () => {
     await ctx.close()
   })
 })
+
+test.describe('1.8.0 投稿零门槛', () => {
+  test('fresh L1 user can submit directly after rules ack', async ({ page }) => {
+    const user = nextTestUser('opencall')
+    await registerAndVerifyViaUi(page, user)
+    await loginViaUi(page, user) // loginViaUi 里的 ensureAuthorReady = 确认《投稿规范》
+
+    await page.goto('/submissions')
+    await page.getByRole('button', { name: /新建提交/ }).click()
+    await expect(page.getByRole('dialog', { name: '新建提交' })).toBeVisible()
+    const title = `Open Call ${Date.now()}`
+    await page.getByLabel('标题').fill(title)
+    await page.getByLabel('作者（逗号分隔）').fill('Open Call Author')
+    await page.getByLabel('学科', { exact: true }).fill('computer science')
+    await page.getByLabel('摘要', { exact: true }).fill('零门槛投稿链路的 E2E 验证摘要。')
+    await page.getByRole('button', { name: '提交' }).click()
+    await expect(page.getByText('提交成功，等待审核')).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText(title).first()).toBeVisible()
+  })
+})

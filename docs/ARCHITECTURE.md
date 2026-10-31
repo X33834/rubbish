@@ -67,6 +67,19 @@ Rubbish 是一个**模块化、多租户的学术期刊发表平台**:核心只�
 这三者都遵循同一约束：**口径进代码、结果进数据**。数据库只存分数与明细，
 不存可编辑的权重表，避免两篇不同月份入库的文章不可比较。
 
+## 1.8.0 变更：投稿零门槛 + 投稿驱动升级（scoring 2.0）
+
+- **投稿门槛放开**：`POST /api/submissions` 移除 `require_level(3)`——注册登录即可投，
+  唯一前置是确认当版《投稿规范》（`rules_ack_version`，合规动作而非等级门槛）。
+- **升级口径 2.0**（ladder.py `SCORING_VERSION = "2.0"`）：XP 单独只能买到 L3
+  （`XP_ONLY_MAX_LEVEL = 3`）；L4 = XP≥400 **且** 录用稿件 ≥1——积分满不再是
+  充分条件，投稿并录用才是升级的重磅。L5/L6 申请制、L7+ 提拔制不变。
+- **实现**：`effective_level(xp, roles, is_admin, accepted_papers)` 增加必传录用数
+  （类型签名强制全部调用点同步口径）；录用数查询抽为
+  `gamification/applications.py::accepted_paper_count`（L4 指标与 L5 画像共用）；
+  `level_snapshot` 转 async 并返回 `metric_remaining`（下一级还差几篇录用）。
+- **口径变更遵守 ladder 自身约束**：改口径必须升 SCORING_VERSION 并同步前端展示。
+
 ## 1.7.0 新增：职员角色申请（L5/L6）
 
 等级阶梯里 L5 审稿人、L6 资深审稿人原先只能由管理员在 `/admin/users` 直接授角色，

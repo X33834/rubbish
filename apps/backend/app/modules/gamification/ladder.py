@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-SCORING_VERSION = "1.0"
+SCORING_VERSION = "2.0"
 
 
 @dataclass(frozen=True)
@@ -33,6 +33,9 @@ class LevelSpec:
     roles: tuple[str, ...]
     capabilities: tuple[str, ...]
     description: str
+    # 2.0 起 merit 轨 L4 增加投稿指标：XP 满只是必要条件，指标不达成不升级。
+    # None = 纯 XP 阈值（L2/L3）；"accepted_papers" = 另需录用稿件 >= 1。
+    metric: str | None = None
 
 
 LEVELS: tuple[LevelSpec, ...] = (
@@ -98,7 +101,8 @@ LEVELS: tuple[LevelSpec, ...] = (
             "稿件优先进入排版队列",
             "个人主页展示已刊作品",
         ),
-        description="有稳定发表记录的作者，享有排版优先与公开作品页。",
+        description="有稿件被本刊录用的作者：投稿并录用才是升级的重磅，积分满也不再自动升级。",
+        metric="accepted_papers",
     ),
     LevelSpec(
         level=5,
@@ -190,22 +194,41 @@ STAFF_ROLE_TO_LEVEL = {
 }
 
 
+# XP 单独能买到的最高等级：L2/L3 仍是确认动作的积分反馈；
+# L4 起由投稿指标（录用 + RQS / 审稿）驱动，XP 满不再是充分条件。
+XP_ONLY_MAX_LEVEL = 3
+
+
 def merit_level_for_xp(xp: int) -> int:
-    """Highest merit tier whose XP floor is met (never above L4)."""
+    """Highest merit tier whose XP floor is met (XP 单独封顶 L3)。"""
     level = 1
     for spec in LEVELS:
         if spec.track != "merit":
             continue
+        if spec.level > XP_ONLY_MAX_LEVEL:
+            break
         if xp >= spec.xp_floor:
             level = spec.level
-    return min(level, MERIT_MAX_LEVEL)
+    return min(level, XP_ONLY_MAX_LEVEL)
 
 
-def effective_level(xp: int, roles: list[str], is_admin: bool) -> int:
-    """max(merit, role floor), with admin pinned to 9."""
+def effective_level(xp: int, roles: list[str], is_admin: bool, accepted_papers: int = 0) -> int:
+    """max(merit, metric, role floor), with admin pinned to 9.
+
+    2.0 口径：L4 需要 XP 满 400 **且** 录用稿件 >= 1——XP 只是必要条件，
+    投稿录用才是升级的闸门；两个条件都满足才升 L4。L5+ 仍走角色授予。
+    """
     if is_admin:
         return 9
     level = merit_level_for_xp(xp)
+    if level >= XP_ONLY_MAX_LEVEL:
+        for spec in LEVELS:
+            if spec.track != "merit" or spec.metric is None:
+                continue
+            if spec.level <= level:
+                continue
+            if xp >= spec.xp_floor and accepted_papers >= 1:
+                level = spec.level
     for role in roles:
         level = max(level, STAFF_ROLE_TO_LEVEL.get(role, 0))
     return level
@@ -228,6 +251,7 @@ def ladder_payload() -> list[dict[str, object]]:
     return [
         {
             "level": spec.level,
+            "metric": spec.metric,
             "code": spec.code,
             "name": spec.name,
             "title": spec.title,
@@ -244,9 +268,9 @@ def ladder_payload() -> list[dict[str, object]]:
 __all__ = [
     "LEVELS",
     "LEVEL_BY_NUMBER",
-    "MERIT_MAX_LEVEL",
     "SCORING_VERSION",
     "STAFF_ROLE_TO_LEVEL",
+    "XP_ONLY_MAX_LEVEL",
     "effective_level",
     "ladder_payload",
     "level_payload",

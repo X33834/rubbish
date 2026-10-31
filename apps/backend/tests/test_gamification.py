@@ -38,28 +38,78 @@ async def test_new_user_starts_at_level_one(client: AsyncClient) -> None:
     assert body["rules_accepted"] is False
 
 
-async def test_level_one_cannot_submit(client: AsyncClient) -> None:
+async def test_level_one_can_submit_after_rules_ack(client: AsyncClient) -> None:
+    """1.8.0 投稿零等级门槛：L1 注册即可投，唯一前置是确认当版《投稿规范》。"""
     r = await client.post(
         "/api/auth/register",
         json={"email": "l1@example.com", "username": "l1user", "password": "password123"},
     )
     token = r.json()["access_token"]
-    submitted = await client.post(
+    headers = {"Authorization": f"Bearer {token}"}
+    body = {
+        "title": "L1 direct submission",
+        "type": "paper",
+        "authors": ["A"],
+        "year": 2026,
+        "discipline": "计算机科学",
+        "abstract": "L1 用户确认规范后即可投稿。",
+    }
+
+    blocked = await client.post("/api/submissions", json=body, headers=headers)
+    assert blocked.status_code == 403
+    detail = blocked.json()["detail"]
+    assert detail["code"] == "rules_ack_required"
+
+    # 确认社区规范 + 作者引导（写入 rules_ack_version）→ 直接投稿成功
+    await client.post(
+        "/api/gamification/onboarding/author", json={"accept_rules": True}, headers=headers
+    )
+    submitted = await client.post("/api/submissions", json=body, headers=headers)
+    assert submitted.status_code == 201, submitted.text
+
+
+async def test_l4_requires_accepted_paper_not_just_xp(
+    client: AsyncClient, test_user: dict, admin_user: dict
+) -> None:
+    """1.8.0 升级口径：XP 满 400 只是必要条件，录用 >= 1 才升 L4。"""
+    from conftest import auth_headers as _ah
+
+    # onboarding 已把 test_user 送到 L3（160 XP）；再 grant 到 500 XP
+    grant = await client.post(
+        f"/api/gamification/admin/users/{test_user['user_id']}/grant",
+        json={"points": 340, "note": "xp floor for L4"},
+        headers=auth_headers(admin_user),
+    )
+    assert grant.status_code == 200, grant.text
+
+    me = await client.get("/api/users/me", headers=_ah(test_user))
+    assert me.json()["xp"] >= 400
+    assert me.json()["level"] == 3, "XP 满但无录用 → 不得升 L4"
+
+    # 投稿 → admin 录用（物化资源）→ L4 指标达成
+    sub = await client.post(
         "/api/submissions",
         json={
-            "title": "L1 attempt",
+            "title": "L4 metric paper",
             "type": "paper",
             "authors": ["A"],
             "year": 2026,
             "discipline": "计算机科学",
-            "abstract": "L1 用户不应能投稿。",
+            "abstract": "用于验证 L4 录用指标的占位摘要，长度足够校验。",
         },
-        headers={"Authorization": f"Bearer {token}"},
+        headers=auth_headers(test_user),
     )
-    assert submitted.status_code == 403
-    detail = submitted.json()["detail"]
-    assert detail["code"] == "level_required"
-    assert detail["required_level"] == 3
+    assert sub.status_code == 201, sub.text
+    sid = sub.json()["id"]
+    dec = await client.patch(
+        f"/api/submissions/{sid}/decision",
+        json={"decision": "accept"},
+        headers=auth_headers(admin_user),
+    )
+    assert dec.status_code == 200, dec.text
+
+    me2 = await client.get("/api/users/me", headers=_ah(test_user))
+    assert me2.json()["level"] == 4, "录用达成 → 升 L4"
 
 
 async def test_level_one_cannot_comment(client: AsyncClient, admin_user: dict) -> None:

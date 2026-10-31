@@ -26,10 +26,12 @@ async def level_of(db: AsyncSession, user: User) -> int:
     # 延迟导入：gamification 包在 import 时会注册路由，而路由又 import 本模块，
     # 顶层导入会形成循环。运行时导入没有这个问题。
     from app.modules.gamification import service as gamification
+    from app.modules.gamification.applications import accepted_paper_count
     from app.modules.gamification.ladder import effective_level
 
     roles = await gamification._user_role_names(db, user)
-    return effective_level(int(user.xp or 0), roles, bool(user.is_admin))
+    accepted = await accepted_paper_count(db, user)
+    return effective_level(int(user.xp or 0), roles, bool(user.is_admin), accepted)
 
 
 def require_level(minimum: int) -> Callable[..., Any]:

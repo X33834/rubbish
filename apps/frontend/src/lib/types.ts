@@ -718,6 +718,8 @@ export interface LevelCapability {
   title: string
   track: 'merit' | 'staff'
   xp_floor?: number
+  // 2.0 起 L4 带投稿指标："accepted_papers" = XP 满之外还需录用 >= 1
+  metric?: string | null
   roles?: string[]
   capabilities: string[]
   description: string

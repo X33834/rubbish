@@ -113,7 +113,7 @@ async def onboarding_community(
     await service.evaluate_badges(db, current_user)
     await db.commit()
     roles = await service._user_role_names(db, current_user)
-    return {"level": service.level_snapshot(current_user, roles)}
+    return {"level": await service.level_snapshot(db, current_user, roles)}
 
 
 @router.post("/onboarding/author")
@@ -151,7 +151,7 @@ async def onboarding_author(
     await db.commit()
     roles = await service._user_role_names(db, current_user)
     return {
-        "level": service.level_snapshot(current_user, roles),
+        "level": await service.level_snapshot(db, current_user, roles),
         "rules_version": CURRENT_RULES_VERSION,
     }
 
@@ -205,7 +205,7 @@ async def get_user_level(
     return PublicUserLevel(
         user_id=user.id,
         username=user.username,
-        level=service.level_snapshot(user, roles),
+        level=await service.level_snapshot(db, user, roles),
     )
 
 

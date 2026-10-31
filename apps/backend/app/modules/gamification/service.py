@@ -302,9 +302,14 @@ async def evaluate_badges(db: AsyncSession, user: User) -> list[UserAchievement]
     return unlocked
 
 
-def level_snapshot(user: User, roles: list[str]) -> dict[str, Any]:
+async def level_snapshot(db: AsyncSession, user: User, roles: list[str]) -> dict[str, Any]:
     xp = int(user.xp or 0)
-    level = effective_level(xp, roles, bool(user.is_admin))
+    # 2.0 口径：L4 由「XP 满 + 录用 >= 1」双条件驱动，需要录用数（applications 模块共用口径）。
+    from app.modules.gamification.applications import accepted_paper_count
+
+    accepted = await accepted_paper_count(db, user)
+    level = effective_level(xp, roles, bool(user.is_admin), accepted)
+    metric_gap = max(0, 1 - accepted) if (xp >= 400 and level < 4) else 0
     spec = LEVEL_BY_NUMBER[level]
     next_floor = None
     for candidate in sorted(LEVEL_BY_NUMBER):
@@ -326,6 +331,8 @@ def level_snapshot(user: User, roles: list[str]) -> dict[str, Any]:
         {
             "xp": xp,
             "merit_level": merit_level_for_xp(xp),
+            # 下一级还差多少录用稿（L4 指标闸门；0 = 不差或已达标）
+            "metric_remaining": metric_gap,
             "next_level_xp": next_floor,
             "progress": round(progress, 3),
             "roles": roles,
@@ -376,7 +383,7 @@ async def profile(db: AsyncSession, user: User, *, include_secret: bool) -> dict
         "user_id": user.id,
         "username": user.username,
         "xp": user.xp or 0,
-        "level": level_snapshot(user, roles),
+        "level": await level_snapshot(db, user, roles),
         "ladder": ladder_payload(),
         "badges": badges,
         "unlocked_count": len(owned),

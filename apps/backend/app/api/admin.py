@@ -122,9 +122,11 @@ async def _user_with_roles(db: AsyncSession, user: User) -> UserResponse:
     role_names = sorted({r for r in result.scalars() if r})
     resp = UserResponse.model_validate(user)
     resp.roles = role_names
+    from app.modules.gamification.applications import accepted_paper_count
     from app.modules.gamification.ladder import effective_level
 
-    resp.level = effective_level(int(user.xp or 0), role_names, bool(user.is_admin))
+    accepted = await accepted_paper_count(db, user)
+    resp.level = effective_level(int(user.xp or 0), role_names, bool(user.is_admin), accepted)
     return resp
 
 

@@ -44,6 +44,24 @@ def _profile_payload(
     }
 
 
+async def accepted_paper_count(db: AsyncSession, user: User) -> int:
+    """该作者被本刊录用的稿件数（accepted / approved；供 L4 指标与 L5 画像共用）。"""
+    return int(
+        (
+            await db.execute(
+                select(func.count(Resource.id))
+                .join(Submission, Submission.resource_id == Resource.id)
+                .where(
+                    Submission.submitted_by == user.id,
+                    Submission.tenant_id == user.tenant_id,
+                    Submission.status.in_(("accepted", "approved")),
+                    Resource.tenant_id == user.tenant_id,
+                )
+            )
+        ).scalar_one()
+    )
+
+
 async def reviewer_profile(db: AsyncSession, user: User) -> dict[str, object]:
     """L5 资格画像：已录用稿件数 + 最高 RQS。"""
     rows = (
@@ -125,6 +143,7 @@ __all__ = [
     "ELIGIBLE_TARGET_ROLES",
     "SENIOR_REVIEW_COUNT",
     "SENIOR_RQS_THRESHOLD",
+    "accepted_paper_count",
     "pending_application_exists",
     "reviewer_eligible",
     "reviewer_profile",
