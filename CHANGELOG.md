@@ -9,6 +9,13 @@
 
 ## [Unreleased]
 
+## [1.8.1] — 2026-10-31
+
+### Fixed
+
+- **/api/gamification/ladder 的 version 字段随口径走**：接口原来硬编码
+  `"1.0"`，升级口径 2.0 后对前端谎报口径版本；现返回 `SCORING_VERSION`。
+
 ## [1.8.0] — 2026-10-31
 
 ### Changed

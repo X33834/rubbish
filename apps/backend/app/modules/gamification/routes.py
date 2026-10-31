@@ -19,7 +19,7 @@ from app.core.schemas import PaginationMeta
 from app.core.time import utcnow
 from app.models import AuditLog, User, UserRole
 from app.modules.gamification import applications, service
-from app.modules.gamification.ladder import ladder_payload, level_payload
+from app.modules.gamification.ladder import SCORING_VERSION, ladder_payload, level_payload
 from app.modules.gamification.models import RoleApplication
 
 router = APIRouter(prefix="/gamification", tags=["gamification"])
@@ -73,7 +73,8 @@ class PublicUserLevel(BaseModel):
 @router.get("/ladder")
 async def get_ladder() -> dict[str, object]:
     """The frozen 9-tier ladder. Public: readers should know what exists."""
-    return {"version": "1.0", "levels": ladder_payload()}
+    # 口径版本跟 SCORING_VERSION 走（2.0 起含投稿指标），不再硬编码 1.0。
+    return {"version": SCORING_VERSION, "levels": ladder_payload()}
 
 
 @router.get("/me")

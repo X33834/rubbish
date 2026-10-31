@@ -14,7 +14,7 @@ async def test_ladder_is_public_and_has_nine_levels(client: AsyncClient) -> None
     r = await client.get("/api/gamification/ladder")
     assert r.status_code == 200
     body = r.json()
-    assert body["version"] == "1.0"
+    assert body["version"] == "2.0"
     assert [item["level"] for item in body["levels"]] == list(range(1, 10))
     levels = {item["level"]: item for item in body["levels"]}
     assert levels[1]["track"] == "merit"
