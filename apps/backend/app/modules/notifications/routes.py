@@ -71,7 +71,9 @@ async def list_notifications(
         base,
         page=page,
         page_size=page_size,
-        order_by=(desc(Notification.created_at), Notification.id.asc()),
+        # id 决胜（desc）：同 tick 插入的行 created_at 相同，asc 会把先插入的
+        # 排到「最新在前」列表的最前 —— 与语义相反（test_notifications 抓到过）。
+        order_by=(desc(Notification.created_at), Notification.id.desc()),
     )
     return NotificationListResponse(
         data=[NotificationResponse.model_validate(r) for r in rows],

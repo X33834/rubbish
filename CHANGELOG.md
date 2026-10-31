@@ -9,6 +9,15 @@
 
 ## [Unreleased]
 
+## [1.7.1] — 2026-10-31
+
+### Fixed
+
+- **通知列表「最新在前」在同秒插入时顺序颠倒**：`GET /api/notifications`
+  以 `created_at desc, id asc` 决胜——两条通知落在同一时间戳时，`id asc`
+  会把先插入的排在最前，与「最新在前」语义相反（test_notifications 以
+  稳定复现抓到）。改为 `id desc` 决胜，与全站其余列表口径一致。
+
 ## [1.7.0] — 2026-10-30
 
 ### Added
